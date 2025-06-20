@@ -4,18 +4,43 @@
     <title>METAR data</title>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython.min.js"></script>
   </head>
-  <body>
+  <body onload="brython()">
+
+    <label for="icao">ICAO: </label>
+    <input id="icao" type="text" value="KLAX">
+    <button id="fetch-btn">Fetch METAR</button>
+
+    <pre id="output"></pre>
+
     <script type="text/python">
-      import urllib.request
+      from browser import document, ajax
+
       def get_metar_data(icao):
-        with urllib.request.urlopen(f"https://aviationweather.gov/api/data/metar?ids={icao}&hours=0") as response:
-        html = response.read().decode("utf-8")
-        remove_new_line=html.replace("\n","")
-        remove_first_part=remove_new_line.replace("<html><head><link rel="stylesheet" href="resource://content-accessible/plaintext.css"></head><body><pre>","")
-        metar=remove_first_part.replace("</pre></body></html>","")
-        return metar
-      icao=input("ICAO: ")
-      print(get_metar_data(icao))
+          def handle_response(req):
+              if req.status == 200 or req.status == 0:
+                  html = req.text.replace("\n", "")
+                  html = html.replace('<html><head><link rel="stylesheet" href="resource://content-accessible/plaintext.css"></head><body><pre>', "")
+                  metar = html.replace("</pre></body></html>", "")
+                  document["output"].text = metar
+              else:
+                  document["output"].text = f"Error: HTTP {req.status}"
+
+          url = f"https://aviationweather.gov/api/data/metar?ids={icao}&hours=0"
+          req = ajax.Ajax()
+          req.bind("complete", handle_response)
+          req.open("GET", url, True)
+          req.send()
+
+      def on_click(ev):
+          icao = document["icao"].value.strip()
+          if icao:
+              document["output"].text = "Fetching METAR data..."
+              get_metar_data(icao)
+          else:
+              document["output"].text = "Please enter an ICAO code."
+
+      document["fetch-btn"].bind("click", on_click)
     </script>
   </body>
 </html>
+
